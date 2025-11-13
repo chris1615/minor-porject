@@ -28,6 +28,10 @@ import {
   BookOpen,
   Calendar,
   Target,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  ArrowUpDown,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -146,6 +150,16 @@ const StudentMarksSystem = () => {
   const [editingSubject, setEditingSubject] = useState(null);
   const [editingMaxMarksValue, setEditingMaxMarksValue] = useState(100);
 
+  // Pagination and search states (from Code 1)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
+  // Analytics pagination (from Code 1)
+  const [analyticsPage, setAnalyticsPage] = useState(0);
+  const studentsPerAnalyticsPage = 10;
+
   // Load data from database on component mount
   useEffect(() => {
     const loadData = () => {
@@ -190,6 +204,12 @@ const StudentMarksSystem = () => {
       setNewStudent((prev) => ({ ...prev, batch: selectedBatch }));
     }
   }, [selectedBatch]);
+
+  // Reset current page when filters change (from Code 1)
+  useEffect(() => {
+    setCurrentPage(1);
+    setSearchTerm("");
+  }, [selectedBatch, selectedSemester, selectedSection]);
 
   const analyzeWeakStudents = () => {
     if (!selectedBatch) return;
@@ -679,18 +699,99 @@ const StudentMarksSystem = () => {
         s.section === selectedSection
     );
 
-    return filteredStudents.slice(0, 10).map((student) => ({
+    // Paginate the performance data (from Code 1)
+    const startIdx = analyticsPage * studentsPerAnalyticsPage;
+    const endIdx = startIdx + studentsPerAnalyticsPage;
+
+    return filteredStudents.slice(startIdx, endIdx).map((student) => ({
       name: student.name,
       ...student.marks,
     }));
   };
 
-  const filteredStudents = students.filter(
+  // Sorting function (from Code 1)
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get filtered and sorted students (from Code 1)
+  const getFilteredAndSortedStudents = () => {
+    let filtered = students.filter(
+      (s) =>
+        selectedBatch &&
+        s.batch === selectedBatch &&
+        s.semester === selectedSemester &&
+        s.section === selectedSection
+    );
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(
+        (s) =>
+          s.name.toLowerCase().includes(term) ||
+          s.rollNo.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aVal, bVal;
+
+        if (sortConfig.key === "name") {
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+        } else if (sortConfig.key === "rollNo") {
+          aVal = a.rollNo.toLowerCase();
+          bVal = b.rollNo.toLowerCase();
+        } else if (sortConfig.key === "average") {
+          const currentSubjects = getCurrentSubjects();
+          const calcAvg = (student) => {
+            const totalMarks = currentSubjects.reduce(
+              (sum, sub) => sum + (student.marks[sub.name] || 0),
+              0
+            );
+            const totalMaxMarks = currentSubjects.reduce(
+              (sum, sub) => sum + (sub.maxMarks || 100),
+              0
+            );
+            return totalMaxMarks > 0 ? (totalMarks / totalMaxMarks) * 100 : 0;
+          };
+          aVal = calcAvg(a);
+          bVal = calcAvg(b);
+        }
+
+        if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  };
+
+  const filteredStudents = getFilteredAndSortedStudents();
+
+  // Pagination calculations (from Code 1)
+  const totalPages = Math.ceil(filteredStudents.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
+  // Analytics pagination calculations (from Code 1)
+  const totalAnalyticsStudents = students.filter(
     (s) =>
-      selectedBatch &&
       s.batch === selectedBatch &&
       s.semester === selectedSemester &&
       s.section === selectedSection
+  ).length;
+  const totalAnalyticsPages = Math.ceil(
+    totalAnalyticsStudents / studentsPerAnalyticsPage
   );
 
   const chartData = getChartData();
@@ -709,7 +810,7 @@ const StudentMarksSystem = () => {
           </p>
         </div>
 
-        {/* Batch Management - REMOVED the add batch option from top bar */}
+        {/* Batch Management - REMOVED add batch from top bar (like Code 2) */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
             <div>
@@ -780,7 +881,7 @@ const StudentMarksSystem = () => {
 
             <div className="flex-1"></div>
 
-            {/* REMOVED: The add batch input and button from top bar */}
+            {/* REMOVED: Batch creation from top bar (like Code 2) */}
 
             <label className="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition flex items-center gap-2">
               <Upload size={20} />
@@ -915,20 +1016,70 @@ const StudentMarksSystem = () => {
                       </div>
                     ))}
                   </div>
-                  {currentSubjects.length === 0 && (
-                    <div className="text-center py-4 text-gray-500">
-                      No subjects available. Please add subjects in the Subjects
-                      tab.
+                </div>
+
+                {/* Search and Filter Controls (from Code 1) */}
+                <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
+                  <div className="flex items-center gap-2 flex-1 max-w-md">
+                    <Search size={20} className="text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or roll number..."
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm text-gray-600">Show:</label>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(parseInt(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
                     </div>
-                  )}
+                    <div className="text-sm text-gray-600">
+                      Showing {startIndex + 1}-
+                      {Math.min(endIndex, filteredStudents.length)} of{" "}
+                      {filteredStudents.length} students
+                    </div>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-4 py-2 text-left">Name</th>
-                        <th className="px-4 py-2 text-left">Roll No</th>
+                        <th className="px-4 py-2 text-left">
+                          <button
+                            onClick={() => handleSort("name")}
+                            className="flex items-center gap-1 hover:text-blue-600"
+                          >
+                            Name
+                            <ArrowUpDown size={14} />
+                          </button>
+                        </th>
+                        <th className="px-4 py-2 text-left">
+                          <button
+                            onClick={() => handleSort("rollNo")}
+                            className="flex items-center gap-1 hover:text-blue-600"
+                          >
+                            Roll No
+                            <ArrowUpDown size={14} />
+                          </button>
+                        </th>
                         <th className="px-4 py-2 text-left">Batch</th>
                         {currentSubjects.map((subjectObj) => (
                           <th
@@ -941,54 +1092,126 @@ const StudentMarksSystem = () => {
                             </div>
                           </th>
                         ))}
+                        <th className="px-4 py-2 text-left">
+                          <button
+                            onClick={() => handleSort("average")}
+                            className="flex items-center gap-1 hover:text-blue-600"
+                          >
+                            Avg %
+                            <ArrowUpDown size={14} />
+                          </button>
+                        </th>
                         <th className="px-4 py-2 text-left">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStudents.map((student) => (
-                        <tr
-                          key={student.id}
-                          className="border-b hover:bg-gray-50"
-                        >
-                          <td className="px-4 py-2">{student.name}</td>
-                          <td className="px-4 py-2">{student.rollNo}</td>
-                          <td className="px-4 py-2">{student.batch}</td>
-                          {currentSubjects.map((subjectObj) => (
-                            <td key={subjectObj.name} className="px-4 py-2">
-                              <input
-                                type="number"
-                                min="0"
-                                max={subjectObj.maxMarks || 100}
-                                value={student.marks[subjectObj.name] || ""}
-                                onChange={(e) =>
-                                  updateStudentMarks(
-                                    student.id,
-                                    subjectObj.name,
-                                    e.target.value
-                                  )
-                                }
-                                className="w-16 px-2 py-1 border border-gray-300 rounded"
-                              />
+                      {paginatedStudents.map((student) => {
+                        const totalMarks = currentSubjects.reduce(
+                          (sum, subjectObj) =>
+                            sum + (student.marks[subjectObj.name] || 0),
+                          0
+                        );
+                        const totalMaxMarks = currentSubjects.reduce(
+                          (sum, subjectObj) =>
+                            sum + (subjectObj.maxMarks || 100),
+                          0
+                        );
+                        const avgPercentage =
+                          totalMaxMarks > 0
+                            ? ((totalMarks / totalMaxMarks) * 100).toFixed(1)
+                            : 0;
+
+                        return (
+                          <tr
+                            key={student.id}
+                            className="border-b hover:bg-gray-50"
+                          >
+                            <td className="px-4 py-2">{student.name}</td>
+                            <td className="px-4 py-2">{student.rollNo}</td>
+                            <td className="px-4 py-2">{student.batch}</td>
+                            {currentSubjects.map((subjectObj) => (
+                              <td key={subjectObj.name} className="px-4 py-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={subjectObj.maxMarks || 100}
+                                  value={student.marks[subjectObj.name] || ""}
+                                  onChange={(e) =>
+                                    updateStudentMarks(
+                                      student.id,
+                                      subjectObj.name,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-16 px-2 py-1 border border-gray-300 rounded"
+                                />
+                              </td>
+                            ))}
+                            <td className="px-4 py-2">
+                              <span
+                                className={`font-semibold ${
+                                  avgPercentage >= 75
+                                    ? "text-green-600"
+                                    : avgPercentage >= 50
+                                    ? "text-yellow-600"
+                                    : "text-red-600"
+                                }`}
+                              >
+                                {avgPercentage}%
+                              </span>
                             </td>
-                          ))}
-                          <td className="px-4 py-2">
-                            <button
-                              onClick={() => deleteStudent(student.id)}
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            <td className="px-4 py-2">
+                              <button
+                                onClick={() => deleteStudent(student.id)}
+                                className="text-red-600 hover:text-red-800"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                   {filteredStudents.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No students found for this batch, semester and section
+                      {searchTerm
+                        ? "No students found matching your search"
+                        : "No students found for this batch, semester and section"}
                     </div>
                   )}
                 </div>
+
+                {/* Pagination Controls (from Code 1) */}
+                {totalPages > 1 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <ChevronLeft size={20} />
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      Next
+                      <ChevronRight size={20} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1116,8 +1339,7 @@ const StudentMarksSystem = () => {
                   </div>
                   {currentSubjects.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No subjects added for this semester. Add subjects using
-                      the form above.
+                      No subjects added for this semester
                     </div>
                   )}
                 </div>
@@ -1219,9 +1441,44 @@ const StudentMarksSystem = () => {
 
                 {performanceData.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">
-                      Individual Student Performance
-                    </h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">
+                        Individual Student Performance
+                      </h3>
+                      {totalAnalyticsPages > 1 && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() =>
+                              setAnalyticsPage((prev) => Math.max(0, prev - 1))
+                            }
+                            disabled={analyticsPage === 0}
+                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            <ChevronLeft size={20} />
+                          </button>
+                          <span className="text-sm text-gray-600">
+                            Students{" "}
+                            {analyticsPage * studentsPerAnalyticsPage + 1}-
+                            {Math.min(
+                              (analyticsPage + 1) * studentsPerAnalyticsPage,
+                              totalAnalyticsStudents
+                            )}{" "}
+                            of {totalAnalyticsStudents}
+                          </span>
+                          <button
+                            onClick={() =>
+                              setAnalyticsPage((prev) =>
+                                Math.min(totalAnalyticsPages - 1, prev + 1)
+                              )
+                            }
+                            disabled={analyticsPage === totalAnalyticsPages - 1}
+                            className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                          >
+                            <ChevronRight size={20} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <ResponsiveContainer width="100%" height={300}>
                       <LineChart data={performanceData}>
                         <CartesianGrid strokeDasharray="3 3" />
