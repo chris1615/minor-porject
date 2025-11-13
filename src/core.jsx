@@ -709,7 +709,7 @@ const StudentMarksSystem = () => {
           </p>
         </div>
 
-        {/* Batch Management */}
+        {/* Batch Management - REMOVED the add batch option from top bar */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
             <div>
@@ -780,22 +780,7 @@ const StudentMarksSystem = () => {
 
             <div className="flex-1"></div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="New Batch (e.g., 2024)"
-                value={newBatch}
-                onChange={(e) => setNewBatch(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg"
-              />
-              <button
-                onClick={addBatch}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-              >
-                <Plus size={20} />
-                Add Batch
-              </button>
-            </div>
+            {/* REMOVED: The add batch input and button from top bar */}
 
             <label className="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition flex items-center gap-2">
               <Upload size={20} />
@@ -930,6 +915,12 @@ const StudentMarksSystem = () => {
                       </div>
                     ))}
                   </div>
+                  {currentSubjects.length === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      No subjects available. Please add subjects in the Subjects
+                      tab.
+                    </div>
+                  )}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -1125,7 +1116,8 @@ const StudentMarksSystem = () => {
                   </div>
                   {currentSubjects.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No subjects added for this semester
+                      No subjects added for this semester. Add subjects using
+                      the form above.
                     </div>
                   )}
                 </div>
@@ -1378,4 +1370,3 @@ const StudentMarksSystem = () => {
 };
 
 export default StudentMarksSystem;
-
