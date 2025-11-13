@@ -43,28 +43,28 @@ A comprehensive, AI-powered web application for managing student marks, tracking
 
 Installation
 
-    Clone the repository
+Clone the repository
 
-        bash
+    bash
 
-            git clone <repository-url>
-            cd student-marks-system
+        git clone <repository-url>
+         cd student-marks-system
 
-    Install dependencies
+Install dependencies
 
-        bash
+    bash
 
-            npm install
+        npm install
 
-    Start the development server
+Start the development server
 
-        bash
+    bash
 
-            npm run dev
+        npm run dev
 
-    Open your browser
+Open your browser
 
-    Navigate to localhost
+Navigate to localhost
 
 
 🛠 Technology Stack
@@ -95,45 +95,30 @@ Installation
 
 🎮 How to Use
 
-    Batch Management
+    1. Batch Management
+        Navigate to the Batches tab
+        Add new batches by entering the year (e.g., 2024)
+        Remove existing batches (minimum one batch required)
 
-    Navigate to the Batches tab
+    2. Subject Configuration
+        Go to the Subjects tab
+        Add new subjects with custom maximum marks
+        Edit maximum marks for existing subjects
+        Remove subjects when needed
 
-    Add new batches by entering the year (e.g., 2024)
+    3. Student Management
+        Use the Manage tab to add individual students
+        Enter marks for each subject (respects maximum marks limits)
+        Edit student marks directly in the table
+        Delete students when necessary
 
-    Remove existing batches (minimum one batch required)
+    4. Data Import/Export
+        Import: Click "Import Excel/CSV" to bulk upload student data
+        Export: Use "Export" to download current data as Excel file
 
-    Subject Configuration
-
-    Go to the Subjects tab
-
-    Add new subjects with custom maximum marks
-
-    Edit maximum marks for existing subjects
-
-    Remove subjects when needed
-
-    Student Management
-
-    Use the Manage tab to add individual students
-
-    Enter marks for each subject (respects maximum marks limits)
-
-    Edit student marks directly in the table
-
-    Delete students when necessary
-
-    Data Import/Export
-
-    Import: Click "Import Excel/CSV" to bulk upload student data
-
-    Export: Use "Export" to download current data as Excel file
-
-    Analytics & Insights
-
-    Analytics Tab: View subject-wise performance charts
-
-    Insights Tab: Identify at-risk students with AI-powered detection
+    5. Analytics & Insights
+        Analytics Tab: View subject-wise performance charts
+        Insights Tab: Identify at-risk students with AI-powered detection
 
 
 🔧 Configuration Default Setup
