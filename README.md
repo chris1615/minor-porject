@@ -5,92 +5,89 @@ A comprehensive, AI-powered web application for managing student marks, tracking
 🌟 Features
 🎯 Core Functionality
 
-  Batch Management: Organize students by academic years (2021, 2022, 2023, etc.)
+   Batch Management: Organize students by academic years (2021, 2022, 2023, etc.)
 
-  Multi-Semester Support: Manage 6 semesters per batch with customizable sections
+   Multi-Semester Support: Manage 6 semesters per batch with customizable sections
 
-  Subject Management: Add/remove subjects with customizable maximum marks
+   Subject Management: Add/remove subjects with customizable maximum marks
 
-  Student Management: Add, edit, and delete student records with marks
+   Student Management: Add, edit, and delete student records with marks
 
-  Data Persistence: All data stored locally using browser storage
+   Data Persistence: All data stored locally using browser storage
 
 📊 Analytics & Insights
 
-  Subject-wise Performance: Visualize average marks, pass/fail rates
+   Subject-wise Performance: Visualize average marks, pass/fail rates
 
-  Individual Student Tracking: Monitor performance across all subjects
+   Individual Student Tracking: Monitor performance across all subjects
 
-  AI-Powered Risk Detection: Automatically identify weak students
+   AI-Powered Risk Detection: Automatically identify weak students
 
-  Real-time Analytics: Dynamic charts and performance metrics
+   Real-time Analytics: Dynamic charts and performance metrics
 
 🔄 Data Management
 
-  Excel/CSV Import: Bulk import student data from spreadsheets
+   Excel/CSV Import: Bulk import student data from spreadsheets
 
-  Excel Export: Download data for external analysis
+   Excel Export: Download data for external analysis
 
-  Batch Operations: Manage multiple batches simultaneously
+   Batch Operations: Manage multiple batches simultaneously
 
 🚀 Quick Start
 Prerequisites
 
-  Node.js (v14 or higher)
+   Node.js (v14 or higher)
 
-  npm or yarn
+   npm or yarn
 
 Installation
 
-Clone the repository
+ Clone the repository
 
-bash
+ bash
 
     git clone <repository-url>
     cd student-marks-system
 
-Install dependencies
+ Install dependencies
 
-bash
+ bash
 
     npm install
 
-Start the development server
+ Start the development server
 
-bash
+ bash
 
     npm run dev
 
-Open your browser
+ Open your browser
 
-text
-
-Navigate to http://localhost:3000
+ Navigate to localhost
 
 🛠 Technology Stack
 
-  Frontend: React 18.2.0
+   Frontend: React 18.2.0
 
-  Charts: Recharts
+   Charts: Recharts
 
-  Icons: Lucide React
+   Icons: Lucide React
 
-  Spreadsheets: SheetJS (xlsx)
+   Spreadsheets: SheetJS (xlsx)
 
-  Styling: Tailwind CSS
+   Styling: Tailwind CSS
 
-  Build Tool: Vite
+   Build Tool: Vite
 
 📁 Project Structure
-text
 
-Student Marks System/
-├──index.html               # HTML template
-├──package.json                 # Dependencies and scripts
-├──vite.config.js              # Vite configuration
-├──src/
-    ├── StudentMarksSystem.jsx    # Main application component
-    ├── main.jsx                  # React entry point
+ Student Marks System/
+  ├──index.html               # HTML template
+  ├──package.json                 # Dependencies and scripts
+  ├──vite.config.js              # Vite configuration
+  ├──src/
+      ├── StudentMarksSystem.jsx    # Main application component
+      ├── main.jsx                  # React entry point
 
 🎮 How to Use
 1. Batch Management
