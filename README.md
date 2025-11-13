@@ -89,7 +89,7 @@ Navigate to localhost
     ├──package.json # Dependencies and scripts 
     ├──vite.config.js # Vite configuration 
     ├──src/ 
-        ├── StudentMarksSystem.jsx # Main application component 
+        ├── core.jsx # Main application component 
         ├── main.jsx # React entry point
 
 
