@@ -353,6 +353,13 @@ const StudentMarksSystem = () => {
     setSearchTerm("");
   }, [selectedBatch, selectedSemester, selectedSection]);
 
+  // Function to count unique students in a batch
+  const countUniqueStudentsInBatch = (batchId) => {
+    const batchStudents = students.filter((s) => s.batch === batchId);
+    const uniqueStudents = new Set(batchStudents.map((s) => s.rollNo));
+    return uniqueStudents.size;
+  };
+
   const analyzeWeakStudents = () => {
     if (!selectedBatch) return;
 
@@ -1821,11 +1828,7 @@ const StudentMarksSystem = () => {
                               {batch.name}
                             </span>
                             <span className="text-sm text-gray-500">
-                              Students:{" "}
-                              {
-                                students.filter((s) => s.batch === batch.id)
-                                  .length
-                              }
+                              Students: {countUniqueStudentsInBatch(batch.id)}
                             </span>
                             <div className="text-sm text-gray-600 mt-1">
                               Semesters: {batch.semesters}
