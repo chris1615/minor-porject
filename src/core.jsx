@@ -4,17 +4,14 @@ import {
   Bar,
   LineChart,
   Line,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ComposedChart,
+  Area,
 } from "recharts";
 import {
   Upload,
@@ -32,6 +29,9 @@ import {
   ChevronRight,
   Search,
   ArrowUpDown,
+  User,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -44,9 +44,27 @@ const DatabaseService = {
       return batches
         ? JSON.parse(batches)
         : [
-            { id: "2021", name: "2021 Batch", startYear: 2021, active: true },
-            { id: "2022", name: "2022 Batch", startYear: 2022, active: true },
-            { id: "2023", name: "2023 Batch", startYear: 2023, active: true },
+            {
+              id: "2021",
+              name: "2021 Batch",
+              startYear: 2021,
+              active: true,
+              semesters: 6,
+            },
+            {
+              id: "2022",
+              name: "2022 Batch",
+              startYear: 2022,
+              active: true,
+              semesters: 6,
+            },
+            {
+              id: "2023",
+              name: "2023 Batch",
+              startYear: 2023,
+              active: true,
+              semesters: 6,
+            },
           ];
     } catch (error) {
       console.error("Error loading batches:", error);
@@ -119,6 +137,121 @@ const DatabaseService = {
   },
 };
 
+// Custom Select Component with Search
+const SearchableSelect = ({
+  value,
+  onChange,
+  options,
+  placeholder = "Select...",
+  disabled = false,
+  searchPlaceholder = "Search...",
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  const handleSelect = (optionValue) => {
+    onChange(optionValue);
+    setIsOpen(false);
+    setSearchTerm("");
+  };
+
+  const handleClear = () => {
+    onChange("");
+    setSearchTerm("");
+  };
+
+  return (
+    <div className="relative w-full">
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full px-3 py-2 text-left border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between ${
+          disabled
+            ? "bg-gray-100 cursor-not-allowed"
+            : "bg-white cursor-pointer"
+        }`}
+      >
+        <span className={selectedOption ? "text-gray-900" : "text-gray-500"}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <div className="flex items-center gap-1">
+          {value && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClear();
+              }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X size={16} />
+            </button>
+          )}
+          <ChevronDown
+            size={16}
+            className={`text-gray-400 transition-transform ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </div>
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          {/* Search Input */}
+          <div className="p-2 border-b border-gray-200">
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="overflow-y-auto max-h-48">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleSelect(option.value)}
+                  className={`w-full px-3 py-2 text-left hover:bg-blue-50 hover:text-blue-700 ${
+                    value === option.value
+                      ? "bg-blue-100 text-blue-700"
+                      : "text-gray-900"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))
+            ) : (
+              <div className="px-3 py-2 text-gray-500 text-center">
+                No options found
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const StudentMarksSystem = () => {
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState("");
@@ -146,17 +279,25 @@ const StudentMarksSystem = () => {
   });
   const [newSubject, setNewSubject] = useState("");
   const [newBatch, setNewBatch] = useState("");
+  const [newBatchSemesters, setNewBatchSemesters] = useState(6); // Default set to 6
   const [newSubjectMaxMarks, setNewSubjectMaxMarks] = useState(100);
   const [editingSubject, setEditingSubject] = useState(null);
   const [editingMaxMarksValue, setEditingMaxMarksValue] = useState(100);
 
-  // Pagination and search states (from Code 1)
+  // Individual performance analytics states
+  const [selectedStudentForAnalytics, setSelectedStudentForAnalytics] =
+    useState("");
+  const [selectedBatchForAnalytics, setSelectedBatchForAnalytics] =
+    useState("");
+  const [studentPerformanceData, setStudentPerformanceData] = useState([]);
+
+  // Pagination and search states
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
-  // Analytics pagination (from Code 1)
+  // Analytics pagination
   const [analyticsPage, setAnalyticsPage] = useState(0);
   const studentsPerAnalyticsPage = 10;
 
@@ -174,6 +315,7 @@ const StudentMarksSystem = () => {
       if (loadedBatches.length > 0) {
         const firstBatch = loadedBatches[0].id;
         setSelectedBatch(firstBatch);
+        setSelectedBatchForAnalytics(firstBatch);
         setNewStudent((prev) => ({ ...prev, batch: firstBatch }));
       }
     };
@@ -205,7 +347,7 @@ const StudentMarksSystem = () => {
     }
   }, [selectedBatch]);
 
-  // Reset current page when filters change (from Code 1)
+  // Reset current page when filters change
   useEffect(() => {
     setCurrentPage(1);
     setSearchTerm("");
@@ -276,9 +418,98 @@ const StudentMarksSystem = () => {
     setWeakStudents(weak);
   };
 
+  // Analyze individual student performance
+  const analyzeIndividualStudentPerformance = () => {
+    if (!selectedBatchForAnalytics || !selectedStudentForAnalytics) {
+      setStudentPerformanceData([]);
+      return;
+    }
+
+    const student = students.find(
+      (s) => s.id.toString() === selectedStudentForAnalytics
+    );
+    if (!student) {
+      setStudentPerformanceData([]);
+      return;
+    }
+
+    const batch = batches.find((b) => b.id === selectedBatchForAnalytics);
+    if (!batch) {
+      setStudentPerformanceData([]);
+      return;
+    }
+
+    const performanceData = [];
+
+    // Get performance for each semester
+    for (let semester = 1; semester <= batch.semesters; semester++) {
+      const semesterStudents = students.filter(
+        (s) =>
+          s.batch === selectedBatchForAnalytics &&
+          s.semester === semester &&
+          s.rollNo === student.rollNo
+      );
+
+      if (semesterStudents.length > 0) {
+        const semesterStudent = semesterStudents[0];
+        const currentSubjects =
+          subjects[selectedBatchForAnalytics]?.[semester] || [];
+
+        if (currentSubjects.length > 0) {
+          const totalMarks = currentSubjects.reduce(
+            (sum, subjectObj) =>
+              sum + (semesterStudent.marks[subjectObj.name] || 0),
+            0
+          );
+          const totalMaxMarks = currentSubjects.reduce(
+            (sum, subjectObj) => sum + (subjectObj.maxMarks || 100),
+            0
+          );
+          const avgPercentage =
+            totalMaxMarks > 0 ? (totalMarks / totalMaxMarks) * 100 : 0;
+
+          performanceData.push({
+            semester: `Sem ${semester}`,
+            average: parseFloat(avgPercentage.toFixed(2)),
+            totalMarks,
+            totalMaxMarks,
+          });
+        } else {
+          // If no subjects but student exists for this semester
+          performanceData.push({
+            semester: `Sem ${semester}`,
+            average: 0,
+            totalMarks: 0,
+            totalMaxMarks: 0,
+          });
+        }
+      } else {
+        // If no student data for this semester
+        performanceData.push({
+          semester: `Sem ${semester}`,
+          average: 0,
+          totalMarks: 0,
+          totalMaxMarks: 0,
+        });
+      }
+    }
+
+    setStudentPerformanceData(performanceData);
+  };
+
   useEffect(() => {
     analyzeWeakStudents();
   }, [students, selectedBatch, selectedSemester, selectedSection, subjects]);
+
+  useEffect(() => {
+    analyzeIndividualStudentPerformance();
+  }, [
+    selectedBatchForAnalytics,
+    selectedStudentForAnalytics,
+    students,
+    batches,
+    subjects,
+  ]);
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -293,12 +524,19 @@ const StudentMarksSystem = () => {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        if (!jsonData.length) {
+          alert("No data found in the file");
+          return;
+        }
+
         // Detect subjects from Excel columns (exclude standard columns)
         const standardColumns = [
           "Name",
           "name",
           "Roll No",
           "rollNo",
+          "RollNo",
+          "rollno",
           "Batch",
           "batch",
           "Semester",
@@ -332,15 +570,23 @@ const StudentMarksSystem = () => {
 
         const newStudents = jsonData.map((row, idx) => {
           const marks = {};
-          currentSemesterSubjects.concat(newSubjects).forEach((subjectObj) => {
+          [...currentSemesterSubjects, ...newSubjects].forEach((subjectObj) => {
             const subjectName = subjectObj.name;
-            marks[subjectName] = parseInt(row[subjectName]) || 0;
+            // Handle different column name variations
+            const markValue =
+              row[subjectName] || row[subjectName.toLowerCase()] || 0;
+            marks[subjectName] = parseInt(markValue) || 0;
           });
 
           return {
             id: Date.now() + idx,
             name: row.Name || row.name || `Student ${idx + 1}`,
-            rollNo: row["Roll No"] || row.rollNo || `R${idx + 1}`,
+            rollNo:
+              row["Roll No"] ||
+              row.rollNo ||
+              row.RollNo ||
+              row.rollno ||
+              `R${idx + 1}`,
             batch: row.Batch || row.batch || selectedBatch,
             semester:
               parseInt(row.Semester || row.semester) || selectedSemester,
@@ -352,8 +598,8 @@ const StudentMarksSystem = () => {
         setStudents((prev) => [...prev, ...newStudents]);
         alert(`Successfully imported ${newStudents.length} students!`);
       } catch (error) {
+        console.error("Error reading file:", error);
         alert("Error reading file. Please ensure it has the correct format.");
-        console.error(error);
       }
     };
     reader.readAsBinaryString(file);
@@ -361,7 +607,10 @@ const StudentMarksSystem = () => {
   };
 
   const exportToExcel = () => {
-    if (!selectedBatch) return;
+    if (!selectedBatch) {
+      alert("Please select a batch first");
+      return;
+    }
 
     const filteredStudents = students.filter(
       (s) =>
@@ -370,22 +619,41 @@ const StudentMarksSystem = () => {
         s.section === selectedSection
     );
 
-    const exportData = filteredStudents.map((s) => ({
-      Name: s.name,
-      "Roll No": s.rollNo,
-      Batch: s.batch,
-      Semester: s.semester,
-      Section: s.section,
-      ...s.marks,
-    }));
+    if (filteredStudents.length === 0) {
+      alert("No students found to export");
+      return;
+    }
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Students");
-    XLSX.writeFile(
-      wb,
-      `Students_${selectedBatch}_Sem${selectedSemester}_${selectedSection}.xlsx`
-    );
+    const exportData = filteredStudents.map((s) => {
+      const studentData = {
+        Name: s.name,
+        "Roll No": s.rollNo,
+        Batch: s.batch,
+        Semester: s.semester,
+        Section: s.section,
+      };
+
+      // Add marks for each subject
+      const currentSubjects = getCurrentSubjects();
+      currentSubjects.forEach((subjectObj) => {
+        studentData[subjectObj.name] = s.marks[subjectObj.name] || 0;
+      });
+
+      return studentData;
+    });
+
+    try {
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Students");
+      XLSX.writeFile(
+        wb,
+        `Students_${selectedBatch}_Sem${selectedSemester}_${selectedSection}.xlsx`
+      );
+    } catch (error) {
+      console.error("Error exporting to Excel:", error);
+      alert("Error exporting data to Excel");
+    }
   };
 
   const addStudent = () => {
@@ -399,10 +667,22 @@ const StudentMarksSystem = () => {
       return;
     }
 
+    // Check if roll number already exists in the same batch
+    const existingStudent = students.find(
+      (s) => s.rollNo === newStudent.rollNo && s.batch === selectedBatch
+    );
+
+    if (existingStudent) {
+      alert("Student with this roll number already exists in this batch");
+      return;
+    }
+
     const student = {
       ...newStudent,
       id: Date.now(),
       batch: selectedBatch,
+      semester: selectedSemester,
+      section: selectedSection,
       marks: { ...newStudent.marks },
     };
 
@@ -418,7 +698,9 @@ const StudentMarksSystem = () => {
   };
 
   const deleteStudent = (id) => {
-    setStudents((prev) => prev.filter((s) => s.id !== id));
+    if (window.confirm("Are you sure you want to delete this student?")) {
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+    }
   };
 
   const updateStudentMarks = (id, subject, value) => {
@@ -589,18 +871,24 @@ const StudentMarksSystem = () => {
       return;
     }
 
+    if (newBatchSemesters < 1 || newBatchSemesters > 12) {
+      alert("Please enter a valid number of semesters (1-12)");
+      return;
+    }
+
     const newBatchObj = {
       id: batchId,
       name: `${batchId} Batch`,
       startYear: parseInt(batchId),
       active: true,
+      semesters: newBatchSemesters,
     };
 
     setBatches((prev) => [...prev, newBatchObj]);
 
     // Initialize subjects for the new batch with max marks
     const newBatchSubjects = {};
-    [1, 2, 3, 4, 5, 6].forEach((semester) => {
+    for (let semester = 1; semester <= newBatchSemesters; semester++) {
       newBatchSubjects[semester] = [
         { name: "Mathematics", maxMarks: 100 },
         { name: "Physics", maxMarks: 100 },
@@ -608,7 +896,7 @@ const StudentMarksSystem = () => {
         { name: "Programming", maxMarks: 100 },
         { name: "English", maxMarks: 100 },
       ];
-    });
+    }
 
     setSubjects((prev) => ({
       ...prev,
@@ -616,6 +904,94 @@ const StudentMarksSystem = () => {
     }));
 
     setNewBatch("");
+    setNewBatchSemesters(6); // Reset to default 6 semesters
+  };
+
+  const addSemesterToBatch = (batchId) => {
+    const batch = batches.find((b) => b.id === batchId);
+    if (!batch) return;
+
+    if (batch.semesters >= 12) {
+      alert("Maximum 12 semesters allowed");
+      return;
+    }
+
+    const updatedBatches = batches.map((b) =>
+      b.id === batchId ? { ...b, semesters: b.semesters + 1 } : b
+    );
+
+    setBatches(updatedBatches);
+
+    // Add empty subjects for the new semester
+    const newSemester = batch.semesters + 1;
+    setSubjects((prev) => ({
+      ...prev,
+      [batchId]: {
+        ...prev[batchId],
+        [newSemester]: [
+          { name: "Mathematics", maxMarks: 100 },
+          { name: "Physics", maxMarks: 100 },
+          { name: "Chemistry", maxMarks: 100 },
+          { name: "Programming", maxMarks: 100 },
+          { name: "English", maxMarks: 100 },
+        ],
+      },
+    }));
+
+    // Update sections
+    setSections((prev) => ({
+      ...prev,
+      [newSemester]: [`${newSemester}A`, `${newSemester}B`, `${newSemester}C`],
+    }));
+  };
+
+  const removeSemesterFromBatch = (batchId) => {
+    const batch = batches.find((b) => b.id === batchId);
+    if (!batch || batch.semesters <= 1) {
+      alert("Cannot remove the only semester");
+      return;
+    }
+
+    // Check if there are students in the last semester
+    const studentsInLastSemester = students.filter(
+      (s) => s.batch === batchId && s.semester === batch.semesters
+    );
+
+    if (studentsInLastSemester.length > 0) {
+      if (
+        !confirm(
+          `There are ${studentsInLastSemester.length} students in semester ${batch.semesters}. Removing this semester will delete these students. Continue?`
+        )
+      ) {
+        return;
+      }
+      // Remove students from the last semester
+      setStudents((prev) =>
+        prev.filter(
+          (s) => !(s.batch === batchId && s.semester === batch.semesters)
+        )
+      );
+    }
+
+    const updatedBatches = batches.map((b) =>
+      b.id === batchId ? { ...b, semesters: b.semesters - 1 } : b
+    );
+
+    setBatches(updatedBatches);
+
+    // Remove the last semester from subjects
+    setSubjects((prev) => {
+      const updatedSubjects = { ...prev };
+      if (updatedSubjects[batchId]) {
+        delete updatedSubjects[batchId][batch.semesters];
+      }
+      return updatedSubjects;
+    });
+
+    // If current selected semester is the removed one, select the previous semester
+    if (selectedBatch === batchId && selectedSemester === batch.semesters) {
+      setSelectedSemester(batch.semesters - 1);
+    }
   };
 
   const removeBatch = (batchId) => {
@@ -649,6 +1025,8 @@ const StudentMarksSystem = () => {
       const remainingBatches = batches.filter((b) => b.id !== batchId);
       if (remainingBatches.length > 0) {
         setSelectedBatch(remainingBatches[0].id);
+      } else {
+        setSelectedBatch("");
       }
     }
   };
@@ -669,6 +1047,8 @@ const StudentMarksSystem = () => {
         s.section === selectedSection
     );
 
+    if (filteredStudents.length === 0) return [];
+
     return currentSubjects.map((subjectObj) => {
       const subjectName = subjectObj.name;
       const maxMarks = subjectObj.maxMarks || 100;
@@ -680,7 +1060,7 @@ const StudentMarksSystem = () => {
 
       return {
         subject: subjectName,
-        average: avg.toFixed(2),
+        average: parseFloat(avg.toFixed(2)),
         passed,
         failed,
         total: marks.length,
@@ -699,7 +1079,7 @@ const StudentMarksSystem = () => {
         s.section === selectedSection
     );
 
-    // Paginate the performance data (from Code 1)
+    // Paginate the performance data
     const startIdx = analyticsPage * studentsPerAnalyticsPage;
     const endIdx = startIdx + studentsPerAnalyticsPage;
 
@@ -709,7 +1089,37 @@ const StudentMarksSystem = () => {
     }));
   };
 
-  // Sorting function (from Code 1)
+  // Get students for selected batch in analytics
+  const getStudentsForAnalytics = () => {
+    if (!selectedBatchForAnalytics) return [];
+
+    // Get unique students by roll number within the selected batch
+    const uniqueStudents = [];
+    const seenRollNos = new Set();
+
+    students.forEach((student) => {
+      if (
+        student.batch === selectedBatchForAnalytics &&
+        !seenRollNos.has(student.rollNo)
+      ) {
+        seenRollNos.add(student.rollNo);
+        uniqueStudents.push(student);
+      }
+    });
+
+    return uniqueStudents;
+  };
+
+  // Get student options for the searchable select
+  const getStudentOptions = () => {
+    const analyticsStudents = getStudentsForAnalytics();
+    return analyticsStudents.map((student) => ({
+      value: student.id.toString(),
+      label: `${student.name} (${student.rollNo})`,
+    }));
+  };
+
+  // Sorting function
   const handleSort = (key) => {
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
@@ -718,7 +1128,7 @@ const StudentMarksSystem = () => {
     setSortConfig({ key, direction });
   };
 
-  // Get filtered and sorted students (from Code 1)
+  // Get filtered and sorted students
   const getFilteredAndSortedStudents = () => {
     let filtered = students.filter(
       (s) =>
@@ -764,6 +1174,8 @@ const StudentMarksSystem = () => {
           };
           aVal = calcAvg(a);
           bVal = calcAvg(b);
+        } else {
+          return 0;
         }
 
         if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
@@ -777,13 +1189,13 @@ const StudentMarksSystem = () => {
 
   const filteredStudents = getFilteredAndSortedStudents();
 
-  // Pagination calculations (from Code 1)
+  // Pagination calculations
   const totalPages = Math.ceil(filteredStudents.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
-  // Analytics pagination calculations (from Code 1)
+  // Analytics pagination calculations
   const totalAnalyticsStudents = students.filter(
     (s) =>
       s.batch === selectedBatch &&
@@ -797,6 +1209,10 @@ const StudentMarksSystem = () => {
   const chartData = getChartData();
   const performanceData = getStudentPerformance();
   const currentSubjects = getCurrentSubjects();
+  const studentOptions = getStudentOptions();
+
+  // Get current batch for semester dropdown
+  const currentBatch = batches.find((b) => b.id === selectedBatch);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -810,7 +1226,7 @@ const StudentMarksSystem = () => {
           </p>
         </div>
 
-        {/* Batch Management - REMOVED add batch from top bar (like Code 2) */}
+        {/* Batch Management */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <div className="flex flex-wrap gap-4 items-center">
             <div>
@@ -820,7 +1236,7 @@ const StudentMarksSystem = () => {
               <select
                 value={selectedBatch}
                 onChange={(e) => setSelectedBatch(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {batches.map((batch) => (
                   <option key={batch.id} value={batch.id}>
@@ -839,20 +1255,24 @@ const StudentMarksSystem = () => {
                 onChange={(e) => {
                   const sem = parseInt(e.target.value);
                   setSelectedSemester(sem);
-                  setSelectedSection(sections[sem][0]);
+                  setSelectedSection(sections[sem]?.[0] || "1A");
                   setNewStudent((prev) => ({
                     ...prev,
                     semester: sem,
-                    section: sections[sem][0],
+                    section: sections[sem]?.[0] || "1A",
                   }));
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {[1, 2, 3, 4, 5, 6].map((sem) => (
-                  <option key={sem} value={sem}>
-                    Semester {sem}
-                  </option>
-                ))}
+                {currentBatch &&
+                  Array.from(
+                    { length: currentBatch.semesters },
+                    (_, i) => i + 1
+                  ).map((sem) => (
+                    <option key={sem} value={sem}>
+                      Semester {sem}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -869,9 +1289,9 @@ const StudentMarksSystem = () => {
                     section: e.target.value,
                   }));
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                {sections[selectedSemester].map((sec) => (
+                {(sections[selectedSemester] || []).map((sec) => (
                   <option key={sec} value={sec}>
                     {sec}
                   </option>
@@ -880,8 +1300,6 @@ const StudentMarksSystem = () => {
             </div>
 
             <div className="flex-1"></div>
-
-            {/* REMOVED: Batch creation from top bar (like Code 2) */}
 
             <label className="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition flex items-center gap-2">
               <Upload size={20} />
@@ -953,7 +1371,7 @@ const StudentMarksSystem = () => {
                       onChange={(e) =>
                         setNewStudent({ ...newStudent, name: e.target.value })
                       }
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <input
                       type="text"
@@ -962,7 +1380,7 @@ const StudentMarksSystem = () => {
                       onChange={(e) =>
                         setNewStudent({ ...newStudent, rollNo: e.target.value })
                       }
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <div>
                       <select
@@ -973,7 +1391,7 @@ const StudentMarksSystem = () => {
                             batch: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         {batches.map((batch) => (
                           <option key={batch.id} value={batch.id}>
@@ -1008,7 +1426,7 @@ const StudentMarksSystem = () => {
                               },
                             })
                           }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                         <div className="text-xs text-gray-500 mt-1">
                           Max: {subjectObj.maxMarks || 100}
@@ -1016,9 +1434,15 @@ const StudentMarksSystem = () => {
                       </div>
                     ))}
                   </div>
+                  {currentSubjects.length === 0 && (
+                    <div className="text-center py-4 text-gray-500">
+                      No subjects available. Please add subjects in the Subjects
+                      tab.
+                    </div>
+                  )}
                 </div>
 
-                {/* Search and Filter Controls (from Code 1) */}
+                {/* Search and Filter Controls */}
                 <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
                   <div className="flex items-center gap-2 flex-1 max-w-md">
                     <Search size={20} className="text-gray-400" />
@@ -1030,7 +1454,7 @@ const StudentMarksSystem = () => {
                         setSearchTerm(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                   <div className="flex items-center gap-4">
@@ -1042,7 +1466,7 @@ const StudentMarksSystem = () => {
                           setPageSize(parseInt(e.target.value));
                           setCurrentPage(1);
                         }}
-                        className="px-3 py-2 border border-gray-300 rounded-lg"
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       >
                         <option value={10}>10</option>
                         <option value={25}>25</option>
@@ -1143,7 +1567,7 @@ const StudentMarksSystem = () => {
                                       e.target.value
                                     )
                                   }
-                                  className="w-16 px-2 py-1 border border-gray-300 rounded"
+                                  className="w-16 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                 />
                               </td>
                             ))}
@@ -1163,7 +1587,8 @@ const StudentMarksSystem = () => {
                             <td className="px-4 py-2">
                               <button
                                 onClick={() => deleteStudent(student.id)}
-                                className="text-red-600 hover:text-red-800"
+                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                                title="Delete student"
                               >
                                 <Trash2 size={18} />
                               </button>
@@ -1182,7 +1607,7 @@ const StudentMarksSystem = () => {
                   )}
                 </div>
 
-                {/* Pagination Controls (from Code 1) */}
+                {/* Pagination Controls */}
                 {totalPages > 1 && (
                   <div className="mt-4 flex items-center justify-between">
                     <button
@@ -1228,7 +1653,7 @@ const StudentMarksSystem = () => {
                       placeholder="Enter subject name"
                       value={newSubject}
                       onChange={(e) => setNewSubject(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <input
                       type="number"
@@ -1239,7 +1664,7 @@ const StudentMarksSystem = () => {
                       onChange={(e) =>
                         setNewSubjectMaxMarks(parseInt(e.target.value) || 100)
                       }
-                      className="px-3 py-2 border border-gray-300 rounded-lg"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <button
                       onClick={addSubject}
@@ -1268,7 +1693,7 @@ const StudentMarksSystem = () => {
                           </span>
                           <button
                             onClick={() => removeSubject(subjectObj.name)}
-                            className="text-red-600 hover:text-red-800 p-1"
+                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
                             disabled={currentSubjects.length <= 1}
                             title={
                               currentSubjects.length <= 1
@@ -1296,19 +1721,19 @@ const StudentMarksSystem = () => {
                                     parseInt(e.target.value) || 100
                                   )
                                 }
-                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                                 autoFocus
                               />
                               <button
                                 onClick={() => saveMaxMarks(subjectObj.name)}
-                                className="text-green-600 hover:text-green-800"
+                                className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50"
                                 title="Save"
                               >
                                 <Save size={16} />
                               </button>
                               <button
                                 onClick={cancelEditingMaxMarks}
-                                className="text-gray-600 hover:text-gray-800"
+                                className="text-gray-600 hover:text-gray-800 p-1 rounded hover:bg-gray-100"
                                 title="Cancel"
                               >
                                 <Trash2 size={16} />
@@ -1326,7 +1751,7 @@ const StudentMarksSystem = () => {
                                     subjectObj.maxMarks || 100
                                   )
                                 }
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
                                 title="Edit maximum marks"
                               >
                                 <Target size={16} />
@@ -1339,7 +1764,8 @@ const StudentMarksSystem = () => {
                   </div>
                   {currentSubjects.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No subjects added for this semester
+                      No subjects added for this semester. Add subjects using
+                      the form above.
                     </div>
                   )}
                 </div>
@@ -1350,13 +1776,24 @@ const StudentMarksSystem = () => {
               <div className="space-y-6">
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4">Add New Batch</h3>
-                  <div className="flex gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <input
                       type="text"
                       placeholder="Enter batch year (e.g., 2024)"
                       value={newBatch}
                       onChange={(e) => setNewBatch(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Number of Semesters"
+                      min="1"
+                      max="12"
+                      value={newBatchSemesters}
+                      onChange={(e) =>
+                        setNewBatchSemesters(parseInt(e.target.value) || 6)
+                      }
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                     <button
                       onClick={addBatch}
@@ -1376,32 +1813,66 @@ const StudentMarksSystem = () => {
                     {batches.map((batch) => (
                       <div
                         key={batch.id}
-                        className="flex justify-between items-center p-4 bg-white border border-gray-200 rounded-lg shadow-sm"
+                        className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm"
                       >
-                        <div>
-                          <span className="font-medium block">
-                            {batch.name}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            Students:{" "}
-                            {
-                              students.filter((s) => s.batch === batch.id)
-                                .length
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <span className="font-medium block text-lg">
+                              {batch.name}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              Students:{" "}
+                              {
+                                students.filter((s) => s.batch === batch.id)
+                                  .length
+                              }
+                            </span>
+                            <div className="text-sm text-gray-600 mt-1">
+                              Semesters: {batch.semesters}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeBatch(batch.id)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                            disabled={batches.length <= 1}
+                            title={
+                              batches.length <= 1
+                                ? "Cannot remove the only batch"
+                                : "Remove batch"
                             }
-                          </span>
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => removeBatch(batch.id)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                          disabled={batches.length <= 1}
-                          title={
-                            batches.length <= 1
-                              ? "Cannot remove the only batch"
-                              : "Remove batch"
-                          }
-                        >
-                          <Trash2 size={18} />
-                        </button>
+
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => addSemesterToBatch(batch.id)}
+                            disabled={batch.semesters >= 12}
+                            className="flex-1 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                            title={
+                              batch.semesters >= 12
+                                ? "Maximum 12 semesters allowed"
+                                : "Add semester"
+                            }
+                          >
+                            <Plus size={14} />
+                            Add Semester
+                          </button>
+                          <button
+                            onClick={() => removeSemesterFromBatch(batch.id)}
+                            disabled={batch.semesters <= 1}
+                            className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                            title={
+                              batch.semesters <= 1
+                                ? "Cannot remove the only semester"
+                                : "Remove last semester"
+                            }
+                          >
+                            <Trash2 size={14} />
+                            Remove Semester
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1410,7 +1881,8 @@ const StudentMarksSystem = () => {
             )}
 
             {activeTab === "analytics" && (
-              <div className="space-y-6">
+              <div className="space-y-8">
+                {/* Subject-wise Performance */}
                 <div>
                   <h3 className="text-lg font-semibold mb-4">
                     Subject-wise Performance
@@ -1439,11 +1911,177 @@ const StudentMarksSystem = () => {
                   )}
                 </div>
 
+                {/* Individual Student Performance */}
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <User size={20} />
+                    Individual Student Performance
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Batch
+                      </label>
+                      <select
+                        value={selectedBatchForAnalytics}
+                        onChange={(e) =>
+                          setSelectedBatchForAnalytics(e.target.value)
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select a batch</option>
+                        {batches.map((batch) => (
+                          <option key={batch.id} value={batch.id}>
+                            {batch.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Student
+                      </label>
+                      <SearchableSelect
+                        value={selectedStudentForAnalytics}
+                        onChange={setSelectedStudentForAnalytics}
+                        options={studentOptions}
+                        placeholder="Select a student..."
+                        disabled={!selectedBatchForAnalytics}
+                        searchPlaceholder="Search by name or roll number..."
+                      />
+                      {studentOptions.length === 0 &&
+                        selectedBatchForAnalytics && (
+                          <div className="text-sm text-gray-500 mt-2">
+                            No students found in this batch
+                          </div>
+                        )}
+                    </div>
+                  </div>
+
+                  {studentPerformanceData.length > 0 ? (
+                    <div>
+                      <h4 className="text-md font-semibold mb-4">
+                        Performance Trend for{" "}
+                        {
+                          students.find(
+                            (s) =>
+                              s.id.toString() === selectedStudentForAnalytics
+                          )?.name
+                        }{" "}
+                        (
+                        {
+                          students.find(
+                            (s) =>
+                              s.id.toString() === selectedStudentForAnalytics
+                          )?.rollNo
+                        }
+                        )
+                      </h4>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <ComposedChart data={studentPerformanceData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="semester" />
+                          <YAxis />
+                          <Tooltip
+                            formatter={(value) => [`${value}%`, "Average"]}
+                          />
+                          <Legend />
+                          <Area
+                            type="monotone"
+                            dataKey="average"
+                            fill="#3b82f6"
+                            stroke="#3b82f6"
+                            name="Average %"
+                            fillOpacity={0.3}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="average"
+                            stroke="#1d4ed8"
+                            strokeWidth={2}
+                            name="Average %"
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+
+                      {/* Detailed Performance Table */}
+                      <div className="mt-6">
+                        <h5 className="text-md font-semibold mb-3">
+                          Detailed Semester-wise Performance
+                        </h5>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-4 py-2 text-left">
+                                  Semester
+                                </th>
+                                <th className="px-4 py-2 text-left">
+                                  Average %
+                                </th>
+                                <th className="px-4 py-2 text-left">
+                                  Total Marks
+                                </th>
+                                <th className="px-4 py-2 text-left">
+                                  Max Marks
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {studentPerformanceData.map((data, index) => (
+                                <tr
+                                  key={index}
+                                  className="border-b hover:bg-gray-50"
+                                >
+                                  <td className="px-4 py-2">{data.semester}</td>
+                                  <td className="px-4 py-2">
+                                    <span
+                                      className={`font-semibold ${
+                                        data.average >= 75
+                                          ? "text-green-600"
+                                          : data.average >= 50
+                                          ? "text-yellow-600"
+                                          : "text-red-600"
+                                      }`}
+                                    >
+                                      {data.average}%
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    {data.totalMarks}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    {data.totalMaxMarks}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedBatchForAnalytics &&
+                    selectedStudentForAnalytics ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No performance data available for the selected student
+                      across semesters
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      Please select a batch and student to view individual
+                      performance
+                    </div>
+                  )}
+                </div>
+
+                {/* Class Performance */}
                 {performanceData.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold">
-                        Individual Student Performance
+                        Class Performance (Top 10 Students)
                       </h3>
                       {totalAnalyticsPages > 1 && (
                         <div className="flex items-center gap-2">
